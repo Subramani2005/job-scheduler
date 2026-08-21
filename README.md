@@ -2,8 +2,7 @@
 
 A distributed job scheduling system supporting immediate, delayed, and recurring (cron) jobs, executed by a horizontally scalable pool of workers with atomic job claiming, configurable retries with backoff, and a dead-letter queue for permanently failed jobs.
 
-**Live demo:** `<your Vercel frontend URL>`
-**Backend API:** `<your Render backend URL>`
+**Live demo:** `https://job-scheduler-git-main-subbudev.vercel.app/`
 
 ## Stack
 
