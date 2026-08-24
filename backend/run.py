@@ -1,3 +1,4 @@
+import os
 import threading
 from app import create_app, db
 from app.models import User, Project, Queue, RetryPolicy, Worker, Job, JobExecution, DeadLetterQueue
@@ -23,13 +24,18 @@ def start_background_processes():
     from worker import run_worker_loop
     from scheduler import run_scheduler_loop
 
-    threading.Thread(target=run_worker_loop, daemon=True).start()
+    # WHY configurable via env var rather than hardcoded: lets you scale the
+    # simulated worker pool from Render's dashboard (no code change, no
+    # local run needed) to demonstrate concurrent claiming with N workers.
+    worker_count = int(os.environ.get("WORKER_COUNT", "3"))
+    for _ in range(worker_count):
+        threading.Thread(target=run_worker_loop, daemon=True).start()
+
     threading.Thread(target=run_scheduler_loop, daemon=True).start()
 
 
 # only start background threads in the actual running server process,
 # not during `flask db migrate` or other CLI invocations that import this file
-import os
 if os.environ.get("RUN_BACKGROUND_PROCESSES", "true").lower() == "true":
     start_background_processes()
 
