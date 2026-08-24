@@ -33,7 +33,14 @@ HEARTBEAT_INTERVAL_SEC = 10
 
 
 def register_worker():
-    worker = Worker(hostname=socket.gethostname(), status="active",
+    # WHY append a thread id to hostname: when several worker loops run as
+    # threads inside one process (free-tier deployment), they'd otherwise
+    # all register with the identical hostname, making it impossible to
+    # tell them apart in the `workers` table or in logs when demonstrating
+    # concurrent claiming.
+    import threading
+    hostname = f"{socket.gethostname()}-t{threading.get_ident() % 10000}"
+    worker = Worker(hostname=hostname, status="active",
                      last_seen_at=datetime.utcnow())
     db.session.add(worker)
     db.session.commit()
@@ -69,8 +76,32 @@ def example_handler(payload):
     return {"result": "ok", "echo": payload}
 
 
+def always_fail_handler(payload):
+    """
+    WHY this handler exists: to demonstrate retry backoff and the
+    dead-letter queue on demand, rather than waiting for a real failure to
+    happen naturally. Create a job with job_type="always_fail" and a
+    retry_policy attached -- you'll see it retry with increasing delay,
+    then land in dead_letter_queue once max_attempts is hit. Useful
+    specifically for a live demo of DLQ behavior.
+    """
+    raise RuntimeError(f"intentional failure for demo purposes: {payload}")
+
+
+def flaky_handler(payload):
+    """Fails ~50% of the time -- demonstrates a job that eventually
+    succeeds after one or two retries, distinct from always_fail which
+    demonstrates the DLQ path."""
+    import random
+    if random.random() < 0.5:
+        raise RuntimeError("simulated transient failure")
+    return {"result": "ok", "echo": payload}
+
+
 JOB_HANDLERS = {
     "example": example_handler,
+    "always_fail": always_fail_handler,
+    "flaky": flaky_handler,
 }
 
 
