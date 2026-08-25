@@ -105,8 +105,22 @@ JOB_HANDLERS = {
 }
 
 
-def run_worker_loop():
-    app = create_app()
+def run_worker_loop(app=None):
+    """
+    WHY app is now an optional parameter instead of always calling
+    create_app() internally: when multiple worker loops run as threads
+    inside one process (free-tier deployment), each call to create_app()
+    previously built its own separate SQLAlchemy engine and connection
+    pool -- N threads meant N full connection pools, which is what
+    exhausted memory on Render's 512MB free instance. Now all threads
+    share ONE Flask app / one engine / one pool, created once in run.py
+    and passed in. When run standalone (python worker.py, e.g. on a paid
+    Background Worker), app defaults to None and it creates its own --
+    same function works in both deployment shapes.
+    """
+    if app is None:
+        app = create_app()
+
     with app.app_context():
         worker = register_worker()
         print(f"[worker {worker.id}] started on {worker.hostname}")
