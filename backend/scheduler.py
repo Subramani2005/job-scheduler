@@ -29,6 +29,7 @@ from app.services import job_service, retry_service
 
 TICK_INTERVAL_SEC = 5
 
+
 def promote_scheduled_jobs():
     """scheduled -> queued once run_at has passed."""
     now = datetime.utcnow()
@@ -43,6 +44,7 @@ def promote_scheduled_jobs():
 
     if due:
         print(f"[scheduler] promoted {len(due)} scheduled job(s) to queued")
+
 
 def spawn_next_cron_occurrences():
     """
@@ -79,8 +81,10 @@ def spawn_next_cron_occurrences():
         db.session.commit()
         print(f"[scheduler] spawned next occurrence of '{job.name}' at {next_time}")
 
-def run_scheduler_loop():
-    app = create_app()
+
+def run_scheduler_loop(app=None):
+    if app is None:
+        app = create_app()
     with app.app_context():
         print("[scheduler] started")
         while True:
@@ -88,6 +92,7 @@ def run_scheduler_loop():
             retry_service.promote_due_retries()
             spawn_next_cron_occurrences()
             time.sleep(TICK_INTERVAL_SEC)
+
 
 if __name__ == "__main__":
     run_scheduler_loop()
