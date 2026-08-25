@@ -24,14 +24,17 @@ def start_background_processes():
     from worker import run_worker_loop
     from scheduler import run_scheduler_loop
 
-    # WHY configurable via env var rather than hardcoded: lets you scale the
-    # simulated worker pool from Render's dashboard (no code change, no
-    # local run needed) to demonstrate concurrent claiming with N workers.
-    worker_count = int(os.environ.get("WORKER_COUNT", "3"))
+    # WHY the shared `app` object (built once above) is passed into every
+    # thread instead of each thread calling create_app() itself: that was
+    # the actual cause of an out-of-memory crash on Render's free tier --
+    # N threads each building their own SQLAlchemy engine/connection pool.
+    # One shared engine, reused across threads, keeps memory flat
+    # regardless of WORKER_COUNT.
+    worker_count = int(os.environ.get("WORKER_COUNT", "2"))
     for _ in range(worker_count):
-        threading.Thread(target=run_worker_loop, daemon=True).start()
+        threading.Thread(target=run_worker_loop, args=(app,), daemon=True).start()
 
-    threading.Thread(target=run_scheduler_loop, daemon=True).start()
+    threading.Thread(target=run_scheduler_loop, args=(app,), daemon=True).start()
 
 
 # only start background threads in the actual running server process,
